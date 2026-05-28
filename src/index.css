@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    "Inter",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background: #f5f7fa;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .print-slip,
+  .print-slip * {
+    visibility: visible !important;
+  }
+  .print-slip {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    min-height: 297mm;
+    padding: 12mm 15mm;
+    margin: 0;
+    background: white !important;
+    font-size: 11px;
+    z-index: 99999;
+  }
+  .no-print {
+    display: none !important;
+  }
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}
