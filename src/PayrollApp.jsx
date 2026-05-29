@@ -1,6 +1,15 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import jsPDF from "jspdf";
 import { toPng } from "html-to-image";
+import {
+  fetchEmployees,
+  saveEmployee as saveEmployeeDB,
+  deleteEmployee as deleteEmployeeDB,
+  fetchSettings,
+  saveSettings as saveSettingsDB,
+  fetchPayroll,
+  savePayrollEntry,
+} from "./supabase";
 
 // ─── STORAGE KEYS ────────────────────────────────────────────────────────────
 const DB = {
@@ -41,6 +50,7 @@ function calcComponents(payScale) {
   const medical = 2500;
   const bonus = Math.round(basic * 0.0833);
   const special = payScale - (basic + hra + conveyance + medical + bonus);
+  const pfBase = basic + conveyance + special; // PF calculated on this
   const grossPayPF = basic + hra + conveyance + medical + special;
   return {
     basic,
@@ -49,6 +59,7 @@ function calcComponents(payScale) {
     medical,
     bonus,
     special,
+    pfBase,
     grossPayPF,
     grossPay: payScale,
   };
@@ -63,6 +74,7 @@ function calcEarned(components, daysAttended, totalDays) {
   const earnedMedical = Math.round(components.medical * ratio);
   const earnedSpecial = Math.round(components.special * ratio);
   const earnedBonus = Math.round(components.bonus * ratio);
+  const earnedPFBase = earnedBasic + earnedConveyance + earnedSpecial; // PF applies on Basic + Conveyance + Special
   const earnedGrossPayPF =
     earnedBasic + earnedHRA + earnedConveyance + earnedMedical + earnedSpecial;
   const earnedGrossPay = earnedGrossPayPF + earnedBonus;
@@ -73,16 +85,18 @@ function calcEarned(components, daysAttended, totalDays) {
     earnedMedical,
     earnedSpecial,
     earnedBonus,
+    earnedPFBase,
     earnedGrossPayPF,
     earnedGrossPay,
   };
 }
 
 function calcDeductions(earned, emp, settings) {
+  // PF Base = Basic + Conveyance + Special (capped at 15000 if ceiling on)
   const pfBase =
-    settings.pfCeiling && earned.earnedBasic > 15000
+    settings.pfCeiling && earned.earnedPFBase > 15000
       ? 15000
-      : earned.earnedBasic;
+      : earned.earnedPFBase;
   const pfEmployee = Math.round(pfBase * 0.12);
   const esicEmployee =
     emp.esicApplicable && earned.earnedGrossPay <= 21000
@@ -98,9 +112,9 @@ function calcDeductions(earned, emp, settings) {
 function calcManagement(earned, emp, settings) {
   // Employer PF uses same base as employee PF (capped at 15000 if pfCeiling on)
   const pfBase =
-    settings.pfCeiling && earned.earnedBasic > 15000
+    settings.pfCeiling && earned.earnedPFBase > 15000
       ? 15000
-      : earned.earnedBasic;
+      : earned.earnedPFBase;
   const pfManagement = Math.round(pfBase * 0.12);
   const esicManagement =
     emp.esicApplicable && earned.earnedGrossPay <= 21000
@@ -155,31 +169,47 @@ const emptyEmployee = {
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function PayrollApp() {
   const [tab, setTab] = useState("employees");
-  const [employees, setEmployees] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(DB.employees)) || [];
-    } catch {
-      return [];
-    }
-  });
-  const [settings, setSettings] = useState(() => {
-    try {
-      return {
-        ...defaultSettings,
-        ...JSON.parse(localStorage.getItem(DB.settings)),
-      };
-    } catch {
-      return defaultSettings;
-    }
-  });
+  const [loading, setLoading] = useState(true);
+  const [employees, setEmployees] = useState([]);
+  const [settings, setSettings] = useState(defaultSettings);
   const [toast, setToast] = useState(null);
 
+  // Load data from Supabase on mount
   useEffect(() => {
-    localStorage.setItem(DB.employees, JSON.stringify(employees));
-  }, [employees]);
+    async function loadData() {
+      try {
+        const [emps, sett] = await Promise.all([
+          fetchEmployees(),
+          fetchSettings(),
+        ]);
+        setEmployees(emps || []);
+        if (sett) setSettings({ ...defaultSettings, ...sett });
+      } catch (err) {
+        console.error("Supabase load error:", err);
+        // Fallback to localStorage
+        try {
+          setEmployees(JSON.parse(localStorage.getItem(DB.employees)) || []);
+          setSettings({
+            ...defaultSettings,
+            ...JSON.parse(localStorage.getItem(DB.settings)),
+          });
+        } catch {
+          /* ignore */
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  // Sync to localStorage as backup
   useEffect(() => {
-    localStorage.setItem(DB.settings, JSON.stringify(settings));
-  }, [settings]);
+    if (!loading) localStorage.setItem(DB.employees, JSON.stringify(employees));
+  }, [employees, loading]);
+  useEffect(() => {
+    if (!loading) localStorage.setItem(DB.settings, JSON.stringify(settings));
+  }, [settings, loading]);
 
   useEffect(() => {
     if (toast) {
@@ -189,6 +219,20 @@ export default function PayrollApp() {
   }, [toast]);
 
   const notify = (msg, type = "success") => setToast({ msg, type });
+
+  // Wrapped setters that sync to Supabase
+  const updateEmployees = useCallback((newEmps) => {
+    setEmployees(newEmps);
+  }, []);
+
+  const updateSettings = useCallback(async (newSettings) => {
+    setSettings(newSettings);
+    try {
+      await saveSettingsDB(newSettings);
+    } catch (err) {
+      console.error("Settings save error:", err);
+    }
+  }, []);
 
   const tabs = [
     { id: "employees", label: "Employees", icon: "👥" },
@@ -222,31 +266,42 @@ export default function PayrollApp() {
           ))}
         </nav>
         <div className="px-5 py-4 border-t border-white/10 text-xs text-blue-200/50">
-          v1.0 • Data stored locally
+          v1.0 • ☁️ Cloud synced
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="ml-60 flex-1 p-8 min-h-screen">
-        {tab === "employees" && (
-          <EmployeeSection
-            employees={employees}
-            setEmployees={setEmployees}
-            notify={notify}
-          />
-        )}
-        {tab === "payroll" && (
-          <PayrollSection employees={employees} settings={settings} />
-        )}
-        {tab === "slips" && (
-          <SlipSection employees={employees} settings={settings} />
-        )}
-        {tab === "settings" && (
-          <SettingsSection
-            settings={settings}
-            setSettings={setSettings}
-            notify={notify}
-          />
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+              <p className="text-gray-500">Loading data...</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {tab === "employees" && (
+              <EmployeeSection
+                employees={employees}
+                setEmployees={updateEmployees}
+                notify={notify}
+              />
+            )}
+            {tab === "payroll" && (
+              <PayrollSection employees={employees} settings={settings} />
+            )}
+            {tab === "slips" && (
+              <SlipSection employees={employees} settings={settings} />
+            )}
+            {tab === "settings" && (
+              <SettingsSection
+                settings={settings}
+                setSettings={updateSettings}
+                notify={notify}
+              />
+            )}
+          </>
         )}
       </main>
 
@@ -284,26 +339,39 @@ function EmployeeSection({ employees, setEmployees, notify }) {
     setShowForm(true);
   };
 
-  const saveEmployee = (e) => {
+  const saveEmployee = async (e) => {
     e.preventDefault();
-    if (editing) {
-      setEmployees(
-        employees.map((emp) =>
-          emp.id === editing ? { ...form, id: editing } : emp,
-        ),
-      );
-      notify("Employee updated");
-    } else {
-      setEmployees([...employees, { ...form, id: genId() }]);
-      notify("Employee added");
+    const empData = editing
+      ? { ...form, id: editing }
+      : { ...form, id: genId() };
+    try {
+      await saveEmployeeDB(empData);
+      if (editing) {
+        setEmployees(
+          employees.map((emp) => (emp.id === editing ? empData : emp)),
+        );
+        notify("Employee updated");
+      } else {
+        setEmployees([...employees, empData]);
+        notify("Employee added");
+      }
+      setShowForm(false);
+    } catch (err) {
+      console.error("Save error:", err);
+      notify("Save failed - check connection", "error");
     }
-    setShowForm(false);
   };
 
-  const deleteEmployee = (id) => {
+  const deleteEmployee = async (id) => {
     if (confirm("Delete this employee permanently?")) {
-      setEmployees(employees.filter((e) => e.id !== id));
-      notify("Employee deleted");
+      try {
+        await deleteEmployeeDB(id);
+        setEmployees(employees.filter((e) => e.id !== id));
+        notify("Employee deleted");
+      } catch (err) {
+        console.error("Delete error:", err);
+        notify("Delete failed", "error");
+      }
     }
   };
 
@@ -376,10 +444,18 @@ function EmployeeSection({ employees, setEmployees, notify }) {
           get(cols.esicApplicable) === "1",
       });
     }
-    setEmployees([...employees, ...newEmps]);
-    setShowImport(false);
-    setImportText("");
-    notify(`${newEmps.length} employees imported`);
+    // Save all to Supabase
+    Promise.all(newEmps.map((emp) => saveEmployeeDB(emp)))
+      .then(() => {
+        setEmployees([...employees, ...newEmps]);
+        setShowImport(false);
+        setImportText("");
+        notify(`${newEmps.length} employees imported`);
+      })
+      .catch((err) => {
+        console.error("Bulk import error:", err);
+        notify("Import failed - check connection", "error");
+      });
   };
 
   const renderField = (label, name, type = "text", required = false) => (
@@ -683,40 +759,41 @@ function PayrollSection({ employees, settings }) {
   const [month, setMonth] = useState(now.getMonth());
   const [year, setYear] = useState(now.getFullYear());
   const [search, setSearch] = useState("");
+  const [payroll, setPayroll] = useState({});
   const totalDays = getDaysInMonth(month, year);
   const storageKey = DB.payroll(year, month);
 
-  const [payroll, setPayroll] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(storageKey)) || {};
-    } catch {
-      return {};
-    }
-  });
-
+  // Load payroll from Supabase
   useEffect(() => {
-    try {
-      setPayroll(
-        JSON.parse(localStorage.getItem(DB.payroll(year, month))) || {},
-      );
-    } catch {
-      setPayroll({});
+    async function loadPayroll() {
+      try {
+        const data = await fetchPayroll(year, month);
+        setPayroll(data || {});
+      } catch (err) {
+        console.error("Payroll load error:", err);
+        try {
+          setPayroll(JSON.parse(localStorage.getItem(storageKey)) || {});
+        } catch {
+          setPayroll({});
+        }
+      }
     }
-  }, [month, year]);
+    loadPayroll();
+  }, [month, year, storageKey]);
 
+  // Backup to localStorage
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(payroll));
   }, [payroll, storageKey]);
 
-  const updateField = (empId, field, value) => {
-    setPayroll((prev) => ({
-      ...prev,
-      [empId]: { ...getEntry(empId), [field]: parseFloat(value) || 0 },
-    }));
-  };
-
   const getEntry = (empId) =>
     payroll[empId] || { daysAttended: totalDays, leaveDays: 0, incomeTax: 0 };
+
+  const updateField = (empId, field, value) => {
+    const newEntry = { ...getEntry(empId), [field]: parseFloat(value) || 0 };
+    setPayroll((prev) => ({ ...prev, [empId]: newEntry }));
+    savePayrollEntry(empId, year, month, newEntry).catch(console.error);
+  };
 
   const years = Array.from({ length: 10 }, (_, i) => 2022 + i);
 
@@ -898,14 +975,21 @@ function PayrollSection({ employees, settings }) {
                           value={entry.leaveDays}
                           onChange={(e) => {
                             const leaves = parseFloat(e.target.value) || 0;
+                            const newEntry = {
+                              ...getEntry(emp.id),
+                              leaveDays: leaves,
+                              daysAttended: Math.max(0, totalDays - leaves),
+                            };
                             setPayroll((prev) => ({
                               ...prev,
-                              [emp.id]: {
-                                ...getEntry(emp.id),
-                                leaveDays: leaves,
-                                daysAttended: Math.max(0, totalDays - leaves),
-                              },
+                              [emp.id]: newEntry,
                             }));
+                            savePayrollEntry(
+                              emp.id,
+                              year,
+                              month,
+                              newEntry,
+                            ).catch(console.error);
                           }}
                           className="w-16 text-center border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                         />
@@ -1317,15 +1401,15 @@ const SalarySlipContent = ({
               </td>
             </tr>
           ))}
-          <tr className="bg-gray-50 font-semibold">
+          <tr className="bg-blue-50 font-semibold">
             <td className="border border-gray-300 px-3 py-1.5">
-              GROSS PAY (PF Base)
+              Gross PF Pay (Basic+Conv+Special)
             </td>
             <td className="border border-gray-300 px-3 py-1.5 text-right">
-              {formatINR(components.grossPayPF)}
+              {formatINR(components.pfBase)}
             </td>
             <td className="border border-gray-300 px-3 py-1.5 text-right">
-              {formatINR(earned.earnedGrossPayPF)}
+              {formatINR(earned.earnedPFBase)}
             </td>
           </tr>
           <tr className="bg-gray-100 font-bold">
@@ -1442,8 +1526,14 @@ const SalarySlipContent = ({
             </p>
           </div>
           <div className="text-right">
-            <div className="w-36 border-b border-gray-400 mb-1"></div>
-            <p className="text-[11px] text-gray-500">Authorized Signatory</p>
+            <img
+              src="/sign.png"
+              alt="Signature"
+              className="h-12 ml-auto mb-1"
+            />
+            <div className="w-36 border-t border-gray-400 pt-1">
+              <p className="text-[11px] text-gray-500">Authorized Signatory</p>
+            </div>
           </div>
         </div>
       </div>
