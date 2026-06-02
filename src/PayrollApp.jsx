@@ -1343,23 +1343,13 @@ const SalarySlipContent = ({
         </table>
       </div>
 
-      {/* Earnings & Deductions Tables */}
-      <div
-        style={{
-          padding: "0 32px",
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "0",
-          flexGrow: 1,
-        }}
-      >
-        {/* Earnings */}
+      {/* Earnings & Deductions Table - Single 4-Column Table */}
+      <div style={{ padding: "0 32px", flexGrow: 1 }}>
         <table
           style={{
             width: "100%",
             borderCollapse: "collapse",
             fontSize: "11px",
-            height: "fit-content",
           }}
         >
           <thead>
@@ -1372,6 +1362,7 @@ const SalarySlipContent = ({
                   textAlign: "left",
                   fontWeight: "600",
                   border: `1px solid ${BLUE}`,
+                  width: "35%",
                 }}
               >
                 EARNINGS
@@ -1384,6 +1375,33 @@ const SalarySlipContent = ({
                   textAlign: "right",
                   fontWeight: "600",
                   border: `1px solid ${BLUE}`,
+                  width: "15%",
+                }}
+              >
+                AMOUNT (₹)
+              </th>
+              <th
+                style={{
+                  backgroundColor: BLUE,
+                  color: "white",
+                  padding: "10px 12px",
+                  textAlign: "left",
+                  fontWeight: "600",
+                  border: `1px solid ${BLUE}`,
+                  width: "35%",
+                }}
+              >
+                DEDUCTIONS
+              </th>
+              <th
+                style={{
+                  backgroundColor: BLUE,
+                  color: "white",
+                  padding: "10px 12px",
+                  textAlign: "right",
+                  fontWeight: "600",
+                  border: `1px solid ${BLUE}`,
+                  width: "15%",
                 }}
               >
                 AMOUNT (₹)
@@ -1392,13 +1410,28 @@ const SalarySlipContent = ({
           </thead>
           <tbody>
             {[
-              ["Basic Salary (50%)", earned.earnedBasic],
-              ["HRA (40%)", earned.earnedHRA],
-              ["Conveyance Allowance", earned.earnedConveyance],
-              ["Medical Allowance", earned.earnedMedical],
-              ["Special Allowance", earned.earnedSpecial],
-              ["Bonus (8.33%)", earned.earnedBonus],
-            ].map(([label, amount], i) => (
+              [
+                "Basic Salary (50%)",
+                earned.earnedBasic,
+                "PF",
+                deductions.pfEmployee,
+              ],
+              ["HRA (40%)", earned.earnedHRA, "ESIC", deductions.esicEmployee],
+              [
+                "Conveyance Allowance",
+                earned.earnedConveyance,
+                "Professional Tax",
+                deductions.profTax,
+              ],
+              ["Medical Allowance", earned.earnedMedical, "", null],
+              ["Special Allowance", earned.earnedSpecial, "", null],
+              [
+                "Bonus (8.33%)",
+                earned.earnedBonus,
+                "Total Deductions",
+                totalDeductions,
+              ],
+            ].map(([eLabel, eAmt, dLabel, dAmt], i) => (
               <tr key={i}>
                 <td
                   style={{
@@ -1407,7 +1440,7 @@ const SalarySlipContent = ({
                     color: "#475569",
                   }}
                 >
-                  {label}
+                  {eLabel}
                 </td>
                 <td
                   style={{
@@ -1417,7 +1450,36 @@ const SalarySlipContent = ({
                     color: "#1e293b",
                   }}
                 >
-                  {Math.round(amount || 0).toLocaleString("en-IN")}
+                  {Math.round(eAmt || 0).toLocaleString("en-IN")}
+                </td>
+                <td
+                  style={{
+                    padding: "9px 12px",
+                    border: cellBorder,
+                    color:
+                      dLabel === "Total Deductions" ? "#1e293b" : "#475569",
+                    fontWeight: dLabel === "Total Deductions" ? "600" : "400",
+                  }}
+                >
+                  {dLabel}
+                </td>
+                <td
+                  style={{
+                    padding: "9px 12px",
+                    border: cellBorder,
+                    textAlign: "right",
+                    color:
+                      dLabel === "Total Deductions" ? "#dc2626" : "#1e293b",
+                    fontWeight: dLabel === "Total Deductions" ? "600" : "400",
+                  }}
+                >
+                  {dLabel
+                    ? dLabel === "Total Deductions"
+                      ? Math.round(dAmt || 0).toLocaleString("en-IN")
+                      : dAmt != null && dAmt > 0
+                        ? Math.round(dAmt).toLocaleString("en-IN")
+                        : "NA"
+                    : ""}
                 </td>
               </tr>
             ))}
@@ -1443,104 +1505,8 @@ const SalarySlipContent = ({
               >
                 {Math.round(earned.earnedGrossPay || 0).toLocaleString("en-IN")}
               </td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* Deductions */}
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: "11px",
-            height: "fit-content",
-          }}
-        >
-          <thead>
-            <tr>
-              <th
-                style={{
-                  backgroundColor: BLUE,
-                  color: "white",
-                  padding: "10px 12px",
-                  textAlign: "left",
-                  fontWeight: "600",
-                  border: `1px solid ${BLUE}`,
-                }}
-              >
-                DEDUCTIONS
-              </th>
-              <th
-                style={{
-                  backgroundColor: BLUE,
-                  color: "white",
-                  padding: "10px 12px",
-                  textAlign: "right",
-                  fontWeight: "600",
-                  border: `1px solid ${BLUE}`,
-                }}
-              >
-                AMOUNT (₹)
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              ["PF", deductions.pfEmployee],
-              ["ESIC", deductions.esicEmployee],
-              ["Professional Tax", deductions.profTax],
-              ["", null],
-              ["", null],
-              ["", null],
-            ].map(([label, amount], i) => (
-              <tr key={i}>
-                <td
-                  style={{
-                    padding: "9px 12px",
-                    border: cellBorder,
-                    color: "#475569",
-                  }}
-                >
-                  {label}
-                </td>
-                <td
-                  style={{
-                    padding: "9px 12px",
-                    border: cellBorder,
-                    textAlign: "right",
-                    color: "#1e293b",
-                  }}
-                >
-                  {label
-                    ? amount != null && amount > 0
-                      ? Math.round(amount).toLocaleString("en-IN")
-                      : "NA"
-                    : ""}
-                </td>
-              </tr>
-            ))}
-            <tr style={{ backgroundColor: "#f1f5f9" }}>
-              <td
-                style={{
-                  padding: "10px 12px",
-                  border: cellBorder,
-                  fontWeight: "600",
-                  color: "#1e293b",
-                }}
-              >
-                Total Deductions
-              </td>
-              <td
-                style={{
-                  padding: "10px 12px",
-                  border: cellBorder,
-                  textAlign: "right",
-                  fontWeight: "600",
-                  color: "#dc2626",
-                }}
-              >
-                {Math.round(totalDeductions || 0).toLocaleString("en-IN")}
-              </td>
+              <td style={{ padding: "10px 12px", border: cellBorder }}></td>
+              <td style={{ padding: "10px 12px", border: cellBorder }}></td>
             </tr>
           </tbody>
         </table>
