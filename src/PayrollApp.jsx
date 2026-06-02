@@ -1186,44 +1186,40 @@ const SalarySlipContent = ({
   const { earned, deductions, totalDeductions, netPay } = calc;
   const emp = employee;
   const BLUE = "#1e3a5f";
+  const cellBorder = "1px solid #cbd5e1";
 
   return (
     <div
-      className="bg-white"
       style={{
         fontFamily: "'Segoe UI', Arial, sans-serif",
         width: "794px",
         minHeight: "1123px",
+        backgroundColor: "white",
         display: "flex",
         flexDirection: "column",
-        border: `2px solid ${BLUE}`,
+        borderLeft: `4px solid ${BLUE}`,
       }}
     >
       {/* Header */}
-      <div className="px-8 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-3">
+      <div
+        style={{
+          padding: "24px 32px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           {settings.companyLogo ? (
             <img
               src={settings.companyLogo}
               alt="Logo"
-              style={{ height: "50px", objectFit: "contain" }}
+              style={{ height: "45px", objectFit: "contain" }}
             />
           ) : (
-            <div
-              style={{
-                width: "50px",
-                height: "50px",
-                backgroundColor: BLUE,
-                borderRadius: "8px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "white",
-                fontSize: "20px",
-                fontWeight: "bold",
-              }}
-            >
-              {settings.companyName?.charAt(0) || "C"}
+            <div style={{ fontSize: "28px", fontWeight: "700", color: BLUE }}>
+              <span style={{ fontWeight: "300" }}>E</span>A |{" "}
+              <span style={{ fontWeight: "400" }}>EUROASIA</span>
             </div>
           )}
         </div>
@@ -1231,49 +1227,48 @@ const SalarySlipContent = ({
           style={{
             backgroundColor: BLUE,
             color: "white",
-            padding: "10px 24px",
-            borderRadius: "25px",
-            textAlign: "right",
+            padding: "10px 28px",
+            borderRadius: "20px",
+            fontSize: "12px",
+            fontWeight: "500",
           }}
         >
-          <p style={{ fontSize: "13px", fontWeight: "500" }}>
-            {settings.companyAddress || "Company Address"}
-          </p>
+          {settings.companyAddress || "Company Address"}
         </div>
       </div>
 
       {/* Title */}
-      <div className="text-center py-3">
-        <p
+      <div style={{ textAlign: "center", padding: "8px 0 20px" }}>
+        <span
           style={{
-            fontSize: "14px",
+            fontSize: "13px",
             fontWeight: "600",
             color: BLUE,
             borderBottom: `2px solid ${BLUE}`,
-            display: "inline-block",
-            paddingBottom: "4px",
+            paddingBottom: "6px",
+            letterSpacing: "0.5px",
           }}
         >
           SALARY SLIP – {MONTHS[month]?.toUpperCase()} {year}
-        </p>
+        </span>
       </div>
 
       {/* Employee Details */}
-      <div className="px-8 py-2">
+      <div style={{ padding: "0 32px", marginBottom: "20px" }}>
         <table
           style={{
             width: "100%",
-            fontSize: "12px",
             borderCollapse: "collapse",
+            fontSize: "11px",
           }}
         >
           <tbody>
             {[
               [
                 "Employee Name",
-                emp.name?.toUpperCase(),
+                emp.name?.toUpperCase() || "—",
                 "Employee Code",
-                emp.empCode,
+                emp.empCode || "—",
               ],
               [
                 "Designation",
@@ -1292,44 +1287,52 @@ const SalarySlipContent = ({
               <tr key={i}>
                 <td
                   style={{
-                    padding: "8px 12px",
+                    padding: "10px 14px",
                     borderLeft: `3px solid ${BLUE}`,
+                    borderTop: cellBorder,
+                    borderBottom: cellBorder,
                     backgroundColor: "#f8fafc",
-                    width: "18%",
                     color: "#64748b",
                     fontWeight: "500",
+                    width: "15%",
                   }}
                 >
                   {l1}
                 </td>
                 <td
                   style={{
-                    padding: "8px 12px",
-                    width: "32%",
+                    padding: "10px 14px",
+                    borderTop: cellBorder,
+                    borderBottom: cellBorder,
                     fontWeight: "600",
                     color: "#1e293b",
+                    width: "35%",
                   }}
                 >
                   {v1}
                 </td>
                 <td
                   style={{
-                    padding: "8px 12px",
+                    padding: "10px 14px",
                     borderLeft: `3px solid ${BLUE}`,
+                    borderTop: cellBorder,
+                    borderBottom: cellBorder,
                     backgroundColor: "#f8fafc",
-                    width: "18%",
                     color: "#64748b",
                     fontWeight: "500",
+                    width: "15%",
                   }}
                 >
                   {l2}
                 </td>
                 <td
                   style={{
-                    padding: "8px 12px",
-                    width: "32%",
+                    padding: "10px 14px",
+                    borderTop: cellBorder,
+                    borderBottom: cellBorder,
                     fontWeight: "600",
                     color: "#1e293b",
+                    width: "35%",
                   }}
                 >
                   {v2}
@@ -1340,207 +1343,235 @@ const SalarySlipContent = ({
         </table>
       </div>
 
-      {/* Earnings & Deductions */}
-      <div className="px-8 py-4 flex-grow">
-        <div
+      {/* Earnings & Deductions Tables */}
+      <div
+        style={{
+          padding: "0 32px",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "0",
+          flexGrow: 1,
+        }}
+      >
+        {/* Earnings */}
+        <table
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "16px",
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: "11px",
+            height: "fit-content",
           }}
         >
-          {/* Earnings Table */}
-          <table
-            style={{
-              width: "100%",
-              fontSize: "11px",
-              borderCollapse: "collapse",
-              border: `1px solid ${BLUE}`,
-            }}
-          >
-            <thead>
-              <tr>
-                <th
-                  style={{
-                    backgroundColor: BLUE,
-                    color: "white",
-                    padding: "10px",
-                    textAlign: "left",
-                    fontWeight: "600",
-                  }}
-                >
-                  EARNINGS
-                </th>
-                <th
-                  style={{
-                    backgroundColor: BLUE,
-                    color: "white",
-                    padding: "10px",
-                    textAlign: "right",
-                    fontWeight: "600",
-                  }}
-                >
-                  AMOUNT (₹)
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ["Basic Salary (50%)", earned.earnedBasic],
-                ["HRA (40%)", earned.earnedHRA],
-                ["Conveyance Allowance", earned.earnedConveyance],
-                ["Medical Allowance", earned.earnedMedical],
-                ["Special Allowance", earned.earnedSpecial],
-                ["Bonus (8.33%)", earned.earnedBonus],
-              ].map(([label, amount], i) => (
-                <tr key={i} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <td style={{ padding: "8px 10px", color: "#475569" }}>
-                    {label}
-                  </td>
-                  <td
-                    style={{
-                      padding: "8px 10px",
-                      textAlign: "right",
-                      fontWeight: "500",
-                      color: "#1e293b",
-                    }}
-                  >
-                    {formatINR(amount).replace("₹", "")}
-                  </td>
-                </tr>
-              ))}
-              <tr style={{ backgroundColor: "#f1f5f9", fontWeight: "600" }}>
-                <td style={{ padding: "10px", color: "#1e293b" }}>GROSS PAY</td>
+          <thead>
+            <tr>
+              <th
+                style={{
+                  backgroundColor: BLUE,
+                  color: "white",
+                  padding: "10px 12px",
+                  textAlign: "left",
+                  fontWeight: "600",
+                  border: `1px solid ${BLUE}`,
+                }}
+              >
+                EARNINGS
+              </th>
+              <th
+                style={{
+                  backgroundColor: BLUE,
+                  color: "white",
+                  padding: "10px 12px",
+                  textAlign: "right",
+                  fontWeight: "600",
+                  border: `1px solid ${BLUE}`,
+                }}
+              >
+                AMOUNT (₹)
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ["Basic Salary (50%)", earned.earnedBasic],
+              ["HRA (40%)", earned.earnedHRA],
+              ["Conveyance Allowance", earned.earnedConveyance],
+              ["Medical Allowance", earned.earnedMedical],
+              ["Special Allowance", earned.earnedSpecial],
+              ["Bonus (8.33%)", earned.earnedBonus],
+            ].map(([label, amount], i) => (
+              <tr key={i}>
                 <td
                   style={{
-                    padding: "10px",
+                    padding: "9px 12px",
+                    border: cellBorder,
+                    color: "#475569",
+                  }}
+                >
+                  {label}
+                </td>
+                <td
+                  style={{
+                    padding: "9px 12px",
+                    border: cellBorder,
                     textAlign: "right",
                     color: "#1e293b",
                   }}
                 >
-                  {formatINR(earned.earnedGrossPay).replace("₹", "")}
+                  {Math.round(amount || 0).toLocaleString("en-IN")}
                 </td>
               </tr>
-            </tbody>
-          </table>
+            ))}
+            <tr style={{ backgroundColor: "#f1f5f9" }}>
+              <td
+                style={{
+                  padding: "10px 12px",
+                  border: cellBorder,
+                  fontWeight: "600",
+                  color: "#1e293b",
+                }}
+              >
+                GROSS PAY
+              </td>
+              <td
+                style={{
+                  padding: "10px 12px",
+                  border: cellBorder,
+                  textAlign: "right",
+                  fontWeight: "600",
+                  color: "#1e293b",
+                }}
+              >
+                {Math.round(earned.earnedGrossPay || 0).toLocaleString("en-IN")}
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-          {/* Deductions Table */}
-          <table
-            style={{
-              width: "100%",
-              fontSize: "11px",
-              borderCollapse: "collapse",
-              border: `1px solid ${BLUE}`,
-            }}
-          >
-            <thead>
-              <tr>
-                <th
+        {/* Deductions */}
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: "11px",
+            height: "fit-content",
+          }}
+        >
+          <thead>
+            <tr>
+              <th
+                style={{
+                  backgroundColor: BLUE,
+                  color: "white",
+                  padding: "10px 12px",
+                  textAlign: "left",
+                  fontWeight: "600",
+                  border: `1px solid ${BLUE}`,
+                }}
+              >
+                DEDUCTIONS
+              </th>
+              <th
+                style={{
+                  backgroundColor: BLUE,
+                  color: "white",
+                  padding: "10px 12px",
+                  textAlign: "right",
+                  fontWeight: "600",
+                  border: `1px solid ${BLUE}`,
+                }}
+              >
+                AMOUNT (₹)
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              ["PF", deductions.pfEmployee],
+              ["ESIC", deductions.esicEmployee],
+              ["Professional Tax", deductions.profTax],
+              ["", null],
+              ["", null],
+              ["", null],
+            ].map(([label, amount], i) => (
+              <tr key={i}>
+                <td
                   style={{
-                    backgroundColor: BLUE,
-                    color: "white",
-                    padding: "10px",
-                    textAlign: "left",
-                    fontWeight: "600",
+                    padding: "9px 12px",
+                    border: cellBorder,
+                    color: "#475569",
                   }}
                 >
-                  DEDUCTIONS
-                </th>
-                <th
-                  style={{
-                    backgroundColor: BLUE,
-                    color: "white",
-                    padding: "10px",
-                    textAlign: "right",
-                    fontWeight: "600",
-                  }}
-                >
-                  AMOUNT (₹)
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ["PF", deductions.pfEmployee],
-                ["ESIC", deductions.esicEmployee],
-                ["Professional Tax", deductions.profTax],
-              ].map(([label, amount], i) => (
-                <tr key={i} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <td style={{ padding: "8px 10px", color: "#475569" }}>
-                    {label}
-                  </td>
-                  <td
-                    style={{
-                      padding: "8px 10px",
-                      textAlign: "right",
-                      fontWeight: "500",
-                      color: "#1e293b",
-                    }}
-                  >
-                    {amount != null && amount > 0
-                      ? formatINR(amount).replace("₹", "")
-                      : "NA"}
-                  </td>
-                </tr>
-              ))}
-              <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                <td style={{ padding: "8px 10px", color: "#475569" }}></td>
-                <td style={{ padding: "8px 10px" }}></td>
-              </tr>
-              <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                <td style={{ padding: "8px 10px", color: "#475569" }}></td>
-                <td style={{ padding: "8px 10px" }}></td>
-              </tr>
-              <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                <td style={{ padding: "8px 10px", color: "#475569" }}></td>
-                <td style={{ padding: "8px 10px" }}></td>
-              </tr>
-              <tr style={{ backgroundColor: "#f1f5f9", fontWeight: "600" }}>
-                <td style={{ padding: "10px", color: "#1e293b" }}>
-                  Total Deductions
+                  {label}
                 </td>
                 <td
                   style={{
-                    padding: "10px",
+                    padding: "9px 12px",
+                    border: cellBorder,
                     textAlign: "right",
-                    color: "#dc2626",
+                    color: "#1e293b",
                   }}
                 >
-                  {formatINR(totalDeductions).replace("₹", "")}
+                  {label
+                    ? amount != null && amount > 0
+                      ? Math.round(amount).toLocaleString("en-IN")
+                      : "NA"
+                    : ""}
                 </td>
               </tr>
-            </tbody>
-          </table>
-        </div>
+            ))}
+            <tr style={{ backgroundColor: "#f1f5f9" }}>
+              <td
+                style={{
+                  padding: "10px 12px",
+                  border: cellBorder,
+                  fontWeight: "600",
+                  color: "#1e293b",
+                }}
+              >
+                Total Deductions
+              </td>
+              <td
+                style={{
+                  padding: "10px 12px",
+                  border: cellBorder,
+                  textAlign: "right",
+                  fontWeight: "600",
+                  color: "#dc2626",
+                }}
+              >
+                {Math.round(totalDeductions || 0).toLocaleString("en-IN")}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-        {/* Net Pay */}
-        <div
-          style={{
-            marginTop: "16px",
-            backgroundColor: BLUE,
-            color: "white",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "12px 20px",
-          }}
-        >
-          <span style={{ fontSize: "13px", fontWeight: "600" }}>NET PAY</span>
-          <span style={{ fontSize: "18px", fontWeight: "700" }}>
-            {formatINR(netPay)}
-          </span>
-        </div>
+      {/* Net Pay */}
+      <div
+        style={{
+          margin: "20px 32px 0",
+          backgroundColor: BLUE,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "14px 20px",
+        }}
+      >
+        <span style={{ color: "white", fontSize: "13px", fontWeight: "600" }}>
+          NET PAY
+        </span>
+        <span style={{ color: "white", fontSize: "20px", fontWeight: "700" }}>
+          ₹{Math.round(netPay || 0).toLocaleString("en-IN")}
+        </span>
       </div>
 
       {/* Signature Section */}
-      <div className="px-8 py-4 mt-auto">
+      <div style={{ padding: "40px 32px 24px", marginTop: "auto" }}>
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-end",
-            borderTop: `1px solid #e2e8f0`,
-            paddingTop: "16px",
           }}
         >
           <div>
@@ -1563,8 +1594,8 @@ const SalarySlipContent = ({
           <div style={{ textAlign: "center" }}>
             <p
               style={{
-                fontSize: "11px",
-                color: "#64748b",
+                fontSize: "10px",
+                color: "#94a3b8",
                 marginBottom: "8px",
               }}
             >
@@ -1572,14 +1603,14 @@ const SalarySlipContent = ({
             </p>
             <div
               style={{
-                width: "60px",
-                height: "60px",
+                width: "55px",
+                height: "55px",
                 border: "2px solid #94a3b8",
                 borderRadius: "50%",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#64748b",
+                color: "#94a3b8",
                 fontSize: "8px",
               }}
             >
@@ -1594,23 +1625,23 @@ const SalarySlipContent = ({
         style={{
           backgroundColor: BLUE,
           color: "white",
-          padding: "12px 32px",
+          padding: "14px 32px",
           display: "flex",
-          justifyContent: "space-around",
+          justifyContent: "space-between",
           alignItems: "center",
           fontSize: "11px",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span>📞</span>
+          <span style={{ fontSize: "14px" }}>📞</span>
           <span>{settings.companyPhone || "+91-9898921290"}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span>✉️</span>
+          <span style={{ fontSize: "14px" }}>✉️</span>
           <span>{settings.companyEmail || "info@euroasias.com"}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span>🌐</span>
+          <span style={{ fontSize: "14px" }}>🌐</span>
           <span>{settings.companyWebsite || "www.euroasias.com"}</span>
         </div>
       </div>
