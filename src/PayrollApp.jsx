@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import jsPDF from "jspdf";
-import { toPng } from "html-to-image";
+import { toJpeg } from "html-to-image";
 import {
   fetchEmployees,
   saveEmployee as saveEmployeeDB,
@@ -868,9 +868,9 @@ function SlipSection({ employees, settings, notify }) {
       setTimeout(resolve, 100);
     });
 
-    const dataUrl = await toPng(container, {
-      pixelRatio: 3,
-      quality: 1,
+    const dataUrl = await toJpeg(container, {
+      pixelRatio: 2,
+      quality: 0.92,
       backgroundColor: "#ffffff",
     });
     slipRoot.unmount();
@@ -893,7 +893,16 @@ function SlipSection({ employees, settings, notify }) {
     const finalHeight = imgHeight * scale;
     const x = (pageWidth - finalWidth) / 2;
 
-    pdf.addImage(dataUrl, "PNG", x, 0, finalWidth, finalHeight);
+    pdf.addImage(
+      dataUrl,
+      "JPEG",
+      x,
+      0,
+      finalWidth,
+      finalHeight,
+      undefined,
+      "FAST",
+    );
     pdf.save(`Salary_Slip_${emp.name}_${MONTHS[month]}_${year}.pdf`);
   };
 
@@ -923,9 +932,9 @@ function SlipSection({ employees, settings, notify }) {
   // Preview selected slip download
   const handlePreviewDownload = async () => {
     if (!pdfRef.current || !selectedEmployee) return;
-    const dataUrl = await toPng(pdfRef.current, {
-      pixelRatio: 3,
-      quality: 1,
+    const dataUrl = await toJpeg(pdfRef.current, {
+      pixelRatio: 2,
+      quality: 0.92,
       backgroundColor: "#ffffff",
     });
     const pdf = new jsPDF("p", "mm", "a4");
@@ -941,11 +950,13 @@ function SlipSection({ employees, settings, notify }) {
     const scale = imgHeight > pageHeight ? pageHeight / imgHeight : 1;
     pdf.addImage(
       dataUrl,
-      "PNG",
+      "JPEG",
       (pageWidth - imgWidth * scale) / 2,
       0,
       imgWidth * scale,
       imgHeight * scale,
+      undefined,
+      "FAST",
     );
     pdf.save(
       `Salary_Slip_${selectedEmployee.name}_${MONTHS[month]}_${year}.pdf`,
@@ -1172,278 +1183,435 @@ const SalarySlipContent = ({
   totalDays,
   settings,
 }) => {
-  const { components, earned, deductions, mgmt, totalDeductions, netPay, ctc } =
-    calc;
+  const { earned, deductions, totalDeductions, netPay } = calc;
   const emp = employee;
+  const BLUE = "#1e3a5f";
 
   return (
     <div
-      className="bg-white border-2 border-slate-300"
+      className="bg-white"
       style={{
-        fontFamily: "'Segoe UI', 'Roboto', sans-serif",
-        minHeight: "1100px",
+        fontFamily: "'Segoe UI', Arial, sans-serif",
+        width: "794px",
+        minHeight: "1123px",
         display: "flex",
         flexDirection: "column",
+        border: `2px solid ${BLUE}`,
       }}
     >
       {/* Header */}
-      <div className="px-8 pt-6 pb-4 border-b-2 border-slate-800">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
-            {settings.companyLogo ? (
-              <img
-                src={settings.companyLogo}
-                alt="Logo"
-                className="h-14 object-contain"
-              />
-            ) : (
-              <div className="w-14 h-14 bg-slate-800 rounded-lg flex items-center justify-center text-white text-xl font-bold">
-                {settings.companyName?.charAt(0) || "C"}
-              </div>
-            )}
-            <div>
-              <h1 className="text-xl font-bold text-slate-800 tracking-tight">
-                {settings.companyName}
-              </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Salary Slip for the month of {MONTHS[month]} {year}
-              </p>
+      <div className="px-8 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          {settings.companyLogo ? (
+            <img
+              src={settings.companyLogo}
+              alt="Logo"
+              style={{ height: "50px", objectFit: "contain" }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "50px",
+                height: "50px",
+                backgroundColor: BLUE,
+                borderRadius: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "white",
+                fontSize: "20px",
+                fontWeight: "bold",
+              }}
+            >
+              {settings.companyName?.charAt(0) || "C"}
             </div>
-          </div>
+          )}
+        </div>
+        <div
+          style={{
+            backgroundColor: BLUE,
+            color: "white",
+            padding: "10px 24px",
+            borderRadius: "25px",
+            textAlign: "right",
+          }}
+        >
+          <p style={{ fontSize: "13px", fontWeight: "500" }}>
+            {settings.companyAddress || "Company Address"}
+          </p>
         </div>
       </div>
 
-      {/* Employee Details Table */}
-      <div className="px-8 py-4">
-        <table className="w-full text-[11px]">
+      {/* Title */}
+      <div className="text-center py-3">
+        <p
+          style={{
+            fontSize: "14px",
+            fontWeight: "600",
+            color: BLUE,
+            borderBottom: `2px solid ${BLUE}`,
+            display: "inline-block",
+            paddingBottom: "4px",
+          }}
+        >
+          SALARY SLIP – {MONTHS[month]?.toUpperCase()} {year}
+        </p>
+      </div>
+
+      {/* Employee Details */}
+      <div className="px-8 py-2">
+        <table
+          style={{
+            width: "100%",
+            fontSize: "12px",
+            borderCollapse: "collapse",
+          }}
+        >
           <tbody>
-            <tr>
-              <td className="py-1.5 text-slate-500 w-28">Employee Name</td>
-              <td className="py-1.5 font-semibold text-slate-800">
-                {emp.name}
-              </td>
-              <td className="py-1.5 text-slate-500 w-28">Employee Code</td>
-              <td className="py-1.5 font-semibold text-slate-800">
-                {emp.empCode}
-              </td>
-            </tr>
-            <tr>
-              <td className="py-1.5 text-slate-500">Designation</td>
-              <td className="py-1.5 text-slate-700">
-                {emp.designation || "—"}
-              </td>
-              <td className="py-1.5 text-slate-500">Department</td>
-              <td className="py-1.5 text-slate-700">{emp.department || "—"}</td>
-            </tr>
-            <tr>
-              <td className="py-1.5 text-slate-500">UAN Number</td>
-              <td className="py-1.5 text-slate-700">{emp.uanNo || "—"}</td>
-              <td className="py-1.5 text-slate-500">Date of Joining</td>
-              <td className="py-1.5 text-slate-700">
-                {emp.dateOfJoining || "—"}
-              </td>
-            </tr>
-            <tr>
-              <td className="py-1.5 text-slate-500">Bank Name</td>
-              <td className="py-1.5 text-slate-700">{emp.bankName || "—"}</td>
-              <td className="py-1.5 text-slate-500">Account No</td>
-              <td className="py-1.5 text-slate-700">{emp.accountNo || "—"}</td>
-            </tr>
-            <tr>
-              <td className="py-1.5 text-slate-500">IFSC Code</td>
-              <td className="py-1.5 text-slate-700">{emp.ifscCode || "—"}</td>
-              <td className="py-1.5 text-slate-500">Pay Period</td>
-              <td className="py-1.5 font-semibold text-slate-800">
-                {MONTHS[month]} {year}
-              </td>
-            </tr>
+            {[
+              [
+                "Employee Name",
+                emp.name?.toUpperCase(),
+                "Employee Code",
+                emp.empCode,
+              ],
+              [
+                "Designation",
+                emp.designation?.toUpperCase() || "—",
+                "UAN No.",
+                emp.uanNo || "—",
+              ],
+              ["ESIC No.", emp.esicNo || "NA", "Total Days", totalDays],
+              [
+                "Date of Joining",
+                emp.dateOfJoining || "—",
+                "Attendance",
+                entry.daysAttended,
+              ],
+            ].map(([l1, v1, l2, v2], i) => (
+              <tr key={i}>
+                <td
+                  style={{
+                    padding: "8px 12px",
+                    borderLeft: `3px solid ${BLUE}`,
+                    backgroundColor: "#f8fafc",
+                    width: "18%",
+                    color: "#64748b",
+                    fontWeight: "500",
+                  }}
+                >
+                  {l1}
+                </td>
+                <td
+                  style={{
+                    padding: "8px 12px",
+                    width: "32%",
+                    fontWeight: "600",
+                    color: "#1e293b",
+                  }}
+                >
+                  {v1}
+                </td>
+                <td
+                  style={{
+                    padding: "8px 12px",
+                    borderLeft: `3px solid ${BLUE}`,
+                    backgroundColor: "#f8fafc",
+                    width: "18%",
+                    color: "#64748b",
+                    fontWeight: "500",
+                  }}
+                >
+                  {l2}
+                </td>
+                <td
+                  style={{
+                    padding: "8px 12px",
+                    width: "32%",
+                    fontWeight: "600",
+                    color: "#1e293b",
+                  }}
+                >
+                  {v2}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
-
-        {/* Attendance Summary */}
-        <div className="flex gap-8 mt-4 pt-3 border-t border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="text-center">
-              <p className="text-lg font-bold text-slate-800">{totalDays}</p>
-              <p className="text-[9px] text-slate-500 uppercase">Total Days</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-center">
-              <p className="text-lg font-bold text-emerald-600">
-                {entry.daysAttended}
-              </p>
-              <p className="text-[9px] text-slate-500 uppercase">Present</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-center">
-              <p className="text-lg font-bold text-amber-600">
-                {entry.leaveDays || 0}
-              </p>
-              <p className="text-[9px] text-slate-500 uppercase">Leave</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-center">
-              <p className="text-lg font-bold text-slate-800">
-                {formatINR(emp.payScale)}
-              </p>
-              <p className="text-[9px] text-slate-500 uppercase">CTC / Month</p>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Main Content - Two Column Layout */}
-      <div className="px-8 py-5 flex-grow">
-        <div className="grid grid-cols-2 gap-6">
-          {/* Earnings */}
-          <div>
-            <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <span className="w-1 h-4 bg-emerald-500 rounded-full"></span>
-              Earnings
-            </h3>
-            <div className="space-y-0">
+      {/* Earnings & Deductions */}
+      <div className="px-8 py-4 flex-grow">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "16px",
+          }}
+        >
+          {/* Earnings Table */}
+          <table
+            style={{
+              width: "100%",
+              fontSize: "11px",
+              borderCollapse: "collapse",
+              border: `1px solid ${BLUE}`,
+            }}
+          >
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    backgroundColor: BLUE,
+                    color: "white",
+                    padding: "10px",
+                    textAlign: "left",
+                    fontWeight: "600",
+                  }}
+                >
+                  EARNINGS
+                </th>
+                <th
+                  style={{
+                    backgroundColor: BLUE,
+                    color: "white",
+                    padding: "10px",
+                    textAlign: "right",
+                    fontWeight: "600",
+                  }}
+                >
+                  AMOUNT (₹)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
               {[
-                ["Basic Salary", earned.earnedBasic],
-                ["House Rent Allowance", earned.earnedHRA],
+                ["Basic Salary (50%)", earned.earnedBasic],
+                ["HRA (40%)", earned.earnedHRA],
                 ["Conveyance Allowance", earned.earnedConveyance],
                 ["Medical Allowance", earned.earnedMedical],
                 ["Special Allowance", earned.earnedSpecial],
-                ["Bonus", earned.earnedBonus],
-              ].map(([label, amount]) => (
-                <div
-                  key={label}
-                  className="flex justify-between py-1.5 border-b border-slate-100 text-[11px]"
-                >
-                  <span className="text-slate-600">{label}</span>
-                  <span className="font-medium text-slate-800">
-                    {formatINR(amount)}
-                  </span>
-                </div>
+                ["Bonus (8.33%)", earned.earnedBonus],
+              ].map(([label, amount], i) => (
+                <tr key={i} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ padding: "8px 10px", color: "#475569" }}>
+                    {label}
+                  </td>
+                  <td
+                    style={{
+                      padding: "8px 10px",
+                      textAlign: "right",
+                      fontWeight: "500",
+                      color: "#1e293b",
+                    }}
+                  >
+                    {formatINR(amount).replace("₹", "")}
+                  </td>
+                </tr>
               ))}
-              <div className="flex justify-between py-2 bg-slate-50 -mx-2 px-2 mt-2 rounded text-[11px]">
-                <span className="text-slate-500">
-                  PF Wage (Basic+Conv+Special)
-                </span>
-                <span className="font-medium text-slate-600">
-                  {formatINR(earned.earnedPFBase)}
-                </span>
-              </div>
-              <div className="flex justify-between py-2.5 border-t-2 border-slate-200 mt-2 text-xs">
-                <span className="font-semibold text-slate-700">
-                  Gross Earnings
-                </span>
-                <span className="font-bold text-slate-800">
-                  {formatINR(earned.earnedGrossPay)}
-                </span>
-              </div>
-            </div>
-          </div>
+              <tr style={{ backgroundColor: "#f1f5f9", fontWeight: "600" }}>
+                <td style={{ padding: "10px", color: "#1e293b" }}>GROSS PAY</td>
+                <td
+                  style={{
+                    padding: "10px",
+                    textAlign: "right",
+                    color: "#1e293b",
+                  }}
+                >
+                  {formatINR(earned.earnedGrossPay).replace("₹", "")}
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-          {/* Deductions */}
-          <div>
-            <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <span className="w-1 h-4 bg-rose-500 rounded-full"></span>
-              Deductions
-            </h3>
-            <div className="space-y-0">
-              {[
-                ["Provident Fund (Employee 12%)", deductions.pfEmployee],
-                ["ESIC (Employee 0.75%)", deductions.esicEmployee],
-                ["Professional Tax", deductions.profTax],
-                ["Income Tax (TDS)", entry.incomeTax || 0],
-              ].map(([label, amount]) => (
-                <div
-                  key={label}
-                  className="flex justify-between py-1.5 border-b border-slate-100 text-[11px]"
+          {/* Deductions Table */}
+          <table
+            style={{
+              width: "100%",
+              fontSize: "11px",
+              borderCollapse: "collapse",
+              border: `1px solid ${BLUE}`,
+            }}
+          >
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    backgroundColor: BLUE,
+                    color: "white",
+                    padding: "10px",
+                    textAlign: "left",
+                    fontWeight: "600",
+                  }}
                 >
-                  <span className="text-slate-600">{label}</span>
-                  <span className="font-medium text-slate-800">
-                    {amount != null ? formatINR(amount) : "—"}
-                  </span>
-                </div>
+                  DEDUCTIONS
+                </th>
+                <th
+                  style={{
+                    backgroundColor: BLUE,
+                    color: "white",
+                    padding: "10px",
+                    textAlign: "right",
+                    fontWeight: "600",
+                  }}
+                >
+                  AMOUNT (₹)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                ["PF", deductions.pfEmployee],
+                ["ESIC", deductions.esicEmployee],
+                ["Professional Tax", deductions.profTax],
+              ].map(([label, amount], i) => (
+                <tr key={i} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ padding: "8px 10px", color: "#475569" }}>
+                    {label}
+                  </td>
+                  <td
+                    style={{
+                      padding: "8px 10px",
+                      textAlign: "right",
+                      fontWeight: "500",
+                      color: "#1e293b",
+                    }}
+                  >
+                    {amount != null && amount > 0
+                      ? formatINR(amount).replace("₹", "")
+                      : "NA"}
+                  </td>
+                </tr>
               ))}
-              <div className="mt-3 pt-2 border-t border-dashed border-slate-200">
-                <p className="text-[9px] text-slate-400 uppercase tracking-wider mb-1">
-                  Employer Contributions
-                </p>
-                <div className="flex justify-between py-1 text-[11px]">
-                  <span className="text-slate-500">PF (Employer 12%)</span>
-                  <span className="text-slate-500">
-                    {formatINR(mgmt.pfManagement)}
-                  </span>
-                </div>
-                <div className="flex justify-between py-1 text-[11px]">
-                  <span className="text-slate-500">ESIC (Employer 3.25%)</span>
-                  <span className="text-slate-500">
-                    {mgmt.esicManagement != null
-                      ? formatINR(mgmt.esicManagement)
-                      : "—"}
-                  </span>
-                </div>
-              </div>
-              <div className="flex justify-between py-2.5 border-t-2 border-slate-200 mt-2 text-xs">
-                <span className="font-semibold text-slate-700">
+              <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                <td style={{ padding: "8px 10px", color: "#475569" }}></td>
+                <td style={{ padding: "8px 10px" }}></td>
+              </tr>
+              <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                <td style={{ padding: "8px 10px", color: "#475569" }}></td>
+                <td style={{ padding: "8px 10px" }}></td>
+              </tr>
+              <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                <td style={{ padding: "8px 10px", color: "#475569" }}></td>
+                <td style={{ padding: "8px 10px" }}></td>
+              </tr>
+              <tr style={{ backgroundColor: "#f1f5f9", fontWeight: "600" }}>
+                <td style={{ padding: "10px", color: "#1e293b" }}>
                   Total Deductions
-                </span>
-                <span className="font-bold text-rose-600">
-                  {formatINR(totalDeductions)}
-                </span>
-              </div>
-            </div>
-          </div>
+                </td>
+                <td
+                  style={{
+                    padding: "10px",
+                    textAlign: "right",
+                    color: "#dc2626",
+                  }}
+                >
+                  {formatINR(totalDeductions).replace("₹", "")}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        {/* Net Pay Box */}
-        <div className="mt-6 bg-gradient-to-r from-slate-800 to-slate-700 rounded-lg p-5 text-white">
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-slate-300 text-xs uppercase tracking-wider">
-                Net Payable
-              </p>
-              <p className="text-2xl font-bold mt-1">{formatINR(netPay)}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-slate-400 text-[10px] uppercase">
-                Cost to Company
-              </p>
-              <p className="text-lg font-semibold text-slate-200">
-                {formatINR(ctc)}
-              </p>
+        {/* Net Pay */}
+        <div
+          style={{
+            marginTop: "16px",
+            backgroundColor: BLUE,
+            color: "white",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "12px 20px",
+          }}
+        >
+          <span style={{ fontSize: "13px", fontWeight: "600" }}>NET PAY</span>
+          <span style={{ fontSize: "18px", fontWeight: "700" }}>
+            {formatINR(netPay)}
+          </span>
+        </div>
+      </div>
+
+      {/* Signature Section */}
+      <div className="px-8 py-4 mt-auto">
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            borderTop: `1px solid #e2e8f0`,
+            paddingTop: "16px",
+          }}
+        >
+          <div>
+            <p
+              style={{
+                fontSize: "11px",
+                color: "#64748b",
+                marginBottom: "4px",
+              }}
+            >
+              Authorized Signatory -{" "}
+              <span style={{ fontWeight: "600", color: "#1e293b" }}>
+                Rajvi Pandya
+              </span>
+            </p>
+            <p style={{ fontSize: "10px", color: "#64748b" }}>
+              Designation - <span style={{ fontWeight: "500" }}>Head HR</span>
+            </p>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <p
+              style={{
+                fontSize: "11px",
+                color: "#64748b",
+                marginBottom: "8px",
+              }}
+            >
+              Company Seal
+            </p>
+            <div
+              style={{
+                width: "60px",
+                height: "60px",
+                border: "2px solid #94a3b8",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#64748b",
+                fontSize: "8px",
+              }}
+            >
+              SEAL
             </div>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="px-8 py-4 border-t border-slate-200 bg-slate-50 mt-auto">
-        <div className="flex justify-between items-end">
-          <div>
-            <p className="text-[9px] text-slate-400 uppercase tracking-wider">
-              Computer Generated Statement
-            </p>
-            <p className="text-[11px] text-slate-600 mt-1">
-              This document does not require a physical signature.
-            </p>
-            <p className="text-[10px] text-slate-500 mt-2 font-medium">
-              {settings.companyName}
-            </p>
-          </div>
-          <div className="text-right">
-            <img
-              src="/sign.png"
-              alt="Signature"
-              className="h-10 ml-auto mb-1 opacity-80"
-            />
-            <div className="border-t border-slate-300 pt-1 min-w-[120px]">
-              <p className="font-semibold text-slate-700 text-[11px]">
-                Rajvi Pandya
-              </p>
-              <p className="text-[10px] text-slate-500">HR Head</p>
-            </div>
-          </div>
+      {/* Footer Bar */}
+      <div
+        style={{
+          backgroundColor: BLUE,
+          color: "white",
+          padding: "12px 32px",
+          display: "flex",
+          justifyContent: "space-around",
+          alignItems: "center",
+          fontSize: "11px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span>📞</span>
+          <span>{settings.companyPhone || "+91-9898921290"}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span>✉️</span>
+          <span>{settings.companyEmail || "info@euroasias.com"}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span>🌐</span>
+          <span>{settings.companyWebsite || "www.euroasias.com"}</span>
         </div>
       </div>
     </div>
