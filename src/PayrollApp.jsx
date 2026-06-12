@@ -868,42 +868,50 @@ function SlipSection({ employees, settings, notify }) {
       setTimeout(resolve, 100);
     });
 
+    // === REDESIGNED: PDF Generation ===
     const dataUrl = await toJpeg(container, {
       pixelRatio: 2,
-      quality: 0.92,
+      quality: 0.9,
       backgroundColor: "#ffffff",
     });
     slipRoot.unmount();
     document.body.removeChild(container);
 
     const pdf = new jsPDF("p", "mm", "a4");
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 8;
+    const contentWidth = pageWidth - margin * 2;
+    const contentHeight = pageHeight - margin * 2;
 
+    // Load image to get dimensions
     const img = new Image();
     img.src = dataUrl;
-    await new Promise((res) => {
-      img.onload = res;
-    });
+    await new Promise((r) => { img.onload = r; });
+    
+    // Calculate scale to fit within content area while maintaining aspect ratio
+    const imgRatio = img.width / img.height;
+    const contentRatio = contentWidth / contentHeight;
+    let finalW, finalH;
+    if (imgRatio > contentRatio) {
+      finalW = contentWidth;
+      finalH = contentWidth / imgRatio;
+    } else {
+      finalH = contentHeight;
+      finalW = contentHeight * imgRatio;
+    }
+    const x = margin + (contentWidth - finalW) / 2;
+    const y = margin;
 
-    const imgWidth = pageWidth;
-    const imgHeight = (img.height * imgWidth) / img.width;
-    const scale = imgHeight > pageHeight ? pageHeight / imgHeight : 1;
-    const finalWidth = imgWidth * scale;
-    const finalHeight = imgHeight * scale;
-    const x = (pageWidth - finalWidth) / 2;
-
-    pdf.addImage(
-      dataUrl,
-      "JPEG",
-      x,
-      0,
-      finalWidth,
-      finalHeight,
-      undefined,
-      "FAST",
-    );
+    pdf.addImage(dataUrl, "JPEG", x, y, finalW, finalH, undefined, "FAST");
+    
+    // Draw border around full content area
+    pdf.setDrawColor(0, 0, 0);
+    pdf.setLineWidth(0.3);
+    pdf.rect(margin, margin, contentWidth, contentHeight);
+    
     pdf.save(`Salary_Slip_${emp.name}_${MONTHS[month]}_${year}.pdf`);
+    // === END REDESIGNED: PDF Generation ===
   };
 
   // Bulk PDF download
@@ -929,251 +937,224 @@ function SlipSection({ employees, settings, notify }) {
     }
   };
 
-  // Preview selected slip download
+  // === REDESIGNED: Preview PDF Generation ===
   const handlePreviewDownload = async () => {
     if (!pdfRef.current || !selectedEmployee) return;
     const dataUrl = await toJpeg(pdfRef.current, {
       pixelRatio: 2,
-      quality: 0.92,
+      quality: 0.9,
       backgroundColor: "#ffffff",
     });
     const pdf = new jsPDF("p", "mm", "a4");
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 8;
+    const contentWidth = pageWidth - margin * 2;
+    const contentHeight = pageHeight - margin * 2;
+
+    // Load image to get dimensions
     const img = new Image();
     img.src = dataUrl;
-    await new Promise((res) => {
-      img.onload = res;
-    });
-    const imgWidth = pageWidth;
-    const imgHeight = (img.height * imgWidth) / img.width;
-    const scale = imgHeight > pageHeight ? pageHeight / imgHeight : 1;
-    pdf.addImage(
-      dataUrl,
-      "JPEG",
-      (pageWidth - imgWidth * scale) / 2,
-      0,
-      imgWidth * scale,
-      imgHeight * scale,
-      undefined,
-      "FAST",
-    );
-    pdf.save(
-      `Salary_Slip_${selectedEmployee.name}_${MONTHS[month]}_${year}.pdf`,
-    );
+    await new Promise((r) => { img.onload = r; });
+    
+    // Calculate scale to fit within content area while maintaining aspect ratio
+    const imgRatio = img.width / img.height;
+    const contentRatio = contentWidth / contentHeight;
+    let finalW, finalH;
+    if (imgRatio > contentRatio) {
+      finalW = contentWidth;
+      finalH = contentWidth / imgRatio;
+    } else {
+      finalH = contentHeight;
+      finalW = contentHeight * imgRatio;
+    }
+    const x = margin + (contentWidth - finalW) / 2;
+    const y = margin;
+
+    pdf.addImage(dataUrl, "JPEG", x, y, finalW, finalH, undefined, "FAST");
+    
+    // Draw border around full content area
+    pdf.setDrawColor(0, 0, 0);
+    pdf.setLineWidth(0.3);
+    pdf.rect(margin, margin, contentWidth, contentHeight);
+
+    pdf.save(`Salary_Slip_${selectedEmployee.name}_${MONTHS[month]}_${year}.pdf`);
   };
+  // === END REDESIGNED: Preview PDF Generation ===
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">
-            Payroll & Salary Slips
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage attendance, leave & download salary slips
-          </p>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <select
-            value={month}
-            onChange={(e) => setMonth(parseInt(e.target.value))}
-            className="border border-gray-300 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-          >
-            {MONTHS.map((m, i) => (
-              <option key={i} value={i}>
-                {m}
-              </option>
-            ))}
-          </select>
-          <select
-            value={year}
-            onChange={(e) => setYear(parseInt(e.target.value))}
-            className="border border-gray-300 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-          >
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={handleBulkDownload}
-            disabled={bulkDownloading || filtered.length === 0}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {bulkDownloading
-              ? "⏳ Downloading..."
-              : `⬇ Bulk Download (${filtered.length})`}
-          </button>
+    <div className="max-w-5xl mx-auto">
+      {/* Header Bar */}
+      <div className="bg-white rounded-xl shadow-sm border p-4 mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-800">Payroll & Salary Slips</h2>
+            <p className="text-sm text-gray-500">{MONTHS[month]} {year} • {totalDays} working days</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={month}
+              onChange={(e) => setMonth(parseInt(e.target.value))}
+              className="border border-gray-300 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            >
+              {MONTHS.map((m, i) => (
+                <option key={i} value={i}>{m}</option>
+              ))}
+            </select>
+            <select
+              value={year}
+              onChange={(e) => setYear(parseInt(e.target.value))}
+              className="border border-gray-300 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            >
+              {years.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleBulkDownload}
+              disabled={bulkDownloading || filtered.length === 0}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-700 transition disabled:opacity-50"
+            >
+              {bulkDownloading ? "⏳ Downloading..." : `⬇ Download All (${filtered.length})`}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Left: Employee Table */}
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-          <div className="p-4 border-b bg-gray-50">
-            <div className="flex items-center gap-3">
-              <input
-                type="text"
-                placeholder="Search employees..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="flex-1 border border-gray-300 px-3 py-2 pl-9 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-              <span className="text-sm text-gray-500">{totalDays} days</span>
-            </div>
-          </div>
-          <div className="overflow-auto max-h-[600px]">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-100 sticky top-0">
-                <tr>
-                  <th className="px-3 py-2.5 text-left font-semibold text-gray-700">
-                    Employee
-                  </th>
-                  <th className="px-3 py-2.5 text-center font-semibold text-gray-700 w-20">
-                    Leave
-                  </th>
-                  <th className="px-3 py-2.5 text-center font-semibold text-gray-700 w-20">
-                    Present
-                  </th>
-                  <th className="px-3 py-2.5 text-center font-semibold text-gray-700 w-24">
-                    Income Tax
-                  </th>
-                  <th className="px-3 py-2.5 text-center font-semibold text-gray-700 w-20">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((emp) => {
-                  const entry = getEntry(emp.id);
-                  const calc = getFullCalc(
-                    emp,
-                    entry.daysAttended,
-                    totalDays,
-                    entry.incomeTax,
-                    settings,
-                  );
-                  return (
-                    <tr
-                      key={emp.id}
-                      className={`border-b hover:bg-blue-50 cursor-pointer transition ${selectedEmpId === emp.id ? "bg-blue-100" : ""}`}
-                      onClick={() => setSelectedEmpId(emp.id)}
-                    >
-                      <td className="px-3 py-2.5">
-                        <div className="font-medium text-gray-800">
-                          {emp.name}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {emp.empCode} • {emp.department || "—"}
-                        </div>
-                      </td>
-                      <td
-                        className="px-3 py-2.5 text-center"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="number"
-                          min="0"
-                          max={totalDays}
-                          value={entry.leaveDays}
-                          onChange={(e) =>
-                            updateLeave(emp.id, parseFloat(e.target.value) || 0)
-                          }
-                          className="w-14 text-center border border-gray-300 rounded px-1 py-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                        />
-                      </td>
-                      <td className="px-3 py-2.5 text-center font-medium text-gray-700">
-                        {entry.daysAttended}
-                      </td>
-                      <td
-                        className="px-3 py-2.5 text-center"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type="number"
-                          min="0"
-                          value={entry.incomeTax}
-                          onChange={(e) =>
-                            updateField(emp.id, "incomeTax", e.target.value)
-                          }
-                          className="w-20 text-center border border-gray-300 rounded px-1 py-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                        />
-                      </td>
-                      <td
-                        className="px-3 py-2.5 text-center"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          onClick={() => handleDownloadPDF(emp, entry)}
-                          className="text-blue-600 hover:text-blue-800 text-lg"
-                          title="Download PDF"
-                        >
-                          ⬇
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {filtered.length === 0 && (
-              <div className="p-8 text-center text-gray-400">
-                No employees found
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Search Bar */}
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="🔍 Search by name, code, or department..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full border border-gray-300 px-4 py-3 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none shadow-sm"
+        />
+      </div>
 
-        {/* Right: Salary Slip Preview */}
-        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+      {/* Employee List */}
+      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="px-4 py-3 text-left font-semibold text-gray-600">Employee</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-24">Leave Days</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-24">Present</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-28">Income Tax</th>
+              <th className="px-4 py-3 text-right font-semibold text-gray-600 w-32">Net Pay</th>
+              <th className="px-4 py-3 text-center font-semibold text-gray-600 w-28">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((emp) => {
+              const entry = getEntry(emp.id);
+              const calc = getFullCalc(emp, entry.daysAttended, totalDays, entry.incomeTax, settings);
+              const isSelected = selectedEmpId === emp.id;
+              return (
+                <tr
+                  key={emp.id}
+                  className={`border-b transition hover:bg-gray-50 ${isSelected ? "bg-blue-50" : ""}`}
+                >
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-800">{emp.name}</div>
+                    <div className="text-xs text-gray-500">{emp.empCode} • {emp.designation || emp.department || "—"}</div>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <input
+                      type="number"
+                      min="0"
+                      max={totalDays}
+                      value={entry.leaveDays}
+                      onChange={(e) => updateLeave(emp.id, parseFloat(e.target.value) || 0)}
+                      className="w-16 text-center border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="font-medium text-gray-700">{entry.daysAttended}</span>
+                    <span className="text-gray-400">/{totalDays}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <input
+                      type="number"
+                      min="0"
+                      value={entry.incomeTax}
+                      onChange={(e) => updateField(emp.id, "incomeTax", e.target.value)}
+                      className="w-20 text-center border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <span className="font-semibold text-green-600">₹{Math.round(calc.netPay).toLocaleString("en-IN")}</span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => setSelectedEmpId(isSelected ? "" : emp.id)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${isSelected ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
+                      >
+                        {isSelected ? "Hide" : "Preview"}
+                      </button>
+                      <button
+                        onClick={() => handleDownloadPDF(emp, entry)}
+                        className="px-3 py-1.5 bg-gray-800 text-white rounded-lg text-xs font-medium hover:bg-gray-900 transition"
+                        title="Download PDF"
+                      >
+                        ⬇ PDF
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {filtered.length === 0 && (
+          <div className="p-12 text-center text-gray-400">No employees found</div>
+        )}
+      </div>
+
+      {/* Salary Slip Preview (Expandable) */}
+      {selectedEmployee && selectedCalc && (
+        <div className="mt-4 bg-white rounded-xl shadow-sm border overflow-hidden">
           <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
-            <span className="font-semibold text-gray-700">
-              {selectedEmployee
-                ? `${selectedEmployee.name}'s Slip`
-                : "Salary Slip Preview"}
-            </span>
-            {selectedEmployee && selectedCalc && (
+            <div>
+              <span className="font-semibold text-gray-800">{selectedEmployee.name}</span>
+              <span className="text-gray-500 ml-2">— Salary Slip Preview</span>
+            </div>
+            <div className="flex items-center gap-2">
               <button
                 onClick={handlePreviewDownload}
-                className="bg-[#1B2A4A] text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-[#243a63] transition"
+                className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition"
               >
-                ⬇ Download
+                ⬇ Download PDF
               </button>
-            )}
-          </div>
-          <div className="overflow-auto max-h-[600px] p-4">
-            {!selectedEmployee || !selectedCalc ? (
-              <div className="p-16 text-center text-gray-400">
-                Click on an employee to preview their salary slip
-              </div>
-            ) : (
-              <div
-                ref={pdfRef}
-                className="bg-white border rounded-lg overflow-hidden"
-                style={{ width: "100%" }}
+              <button
+                onClick={() => setSelectedEmpId("")}
+                className="text-gray-500 hover:text-gray-700 p-2"
               >
-                <SalarySlipContent
-                  employee={selectedEmployee}
-                  calc={selectedCalc}
-                  entry={selectedEntry}
-                  month={month}
-                  year={year}
-                  totalDays={totalDays}
-                  settings={settings}
-                />
-              </div>
-            )}
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="p-4 overflow-auto bg-gray-100">
+            <div ref={pdfRef} className=" bg-white shadow-lg" style={{ width: "fit-content" }}>
+              <SalarySlipContent
+                employee={selectedEmployee}
+                calc={selectedCalc}
+                entry={selectedEntry}
+                month={month}
+                year={year}
+                totalDays={totalDays}
+                settings={settings}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-// ─── SALARY SLIP CONTENT (shared between preview and print) ──────────────────
+// === REDESIGNED: SalarySlipContent ===
 const SalarySlipContent = ({
   employee,
   calc,
@@ -1183,437 +1164,134 @@ const SalarySlipContent = ({
   totalDays,
   settings,
 }) => {
-  const { earned, deductions, totalDeductions, netPay } = calc;
+  const { earned, deductions, mgmt, totalDeductions, netPay } = calc;
   const emp = employee;
-  const BLUE = "#1e3a5f";
-  const cellBorder = "1px solid #cbd5e1";
+  const border = "1px solid #333";
 
   return (
-    <div
-      style={{
-        fontFamily: "'Segoe UI', Arial, sans-serif",
-        width: "794px",
-        minHeight: "1123px",
-        backgroundColor: "white",
-        display: "flex",
-        flexDirection: "column",
-        borderLeft: `4px solid ${BLUE}`,
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          padding: "24px 32px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
+    <div style={{
+      fontFamily: "system-ui, Arial, sans-serif",
+      width: "750px",
+      minHeight: "1122px",
+      backgroundColor: "#fff",
+      display: "flex",
+      flexDirection: "column",
+      padding: "24px",
+      boxSizing: "border-box",
+    }}>
+      
+      {/* 1. HEADER */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "12px", borderBottom: "1px solid #000" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           {settings.companyLogo ? (
-            <img
-              src={settings.companyLogo}
-              alt="Logo"
-              style={{ height: "45px", objectFit: "contain" }}
-            />
+            <img src={settings.companyLogo} alt="Logo" style={{ height: "90px", maxWidth: "250px", objectFit: "contain" }} />
           ) : (
-            <div style={{ fontSize: "28px", fontWeight: "700", color: BLUE }}>
-              <span style={{ fontWeight: "300" }}>E</span>A |{" "}
-              <span style={{ fontWeight: "400" }}>EUROASIA</span>
-            </div>
+            <div style={{ width: "50px", height: "50px", border: "1px solid #333", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px" }}>LOGO</div>
           )}
+         
         </div>
-        <div
-          style={{
-            backgroundColor: BLUE,
-            color: "white",
-            padding: "10px 28px",
-            borderRadius: "20px",
-            fontSize: "12px",
-            fontWeight: "500",
-          }}
-        >
-          {settings.companyAddress || "Company Address"}
+        <div style={{ textAlign: "right", fontSize: "10px", color: "#333", maxWidth: "220px" }}>
+          105,106,107 , Athena Avenue Gota,
+Ahmedabad, Gujarat, 382481
         </div>
       </div>
 
-      {/* Title */}
-      <div style={{ textAlign: "center", padding: "8px 0 20px" }}>
-        <span
-          style={{
-            fontSize: "13px",
-            fontWeight: "600",
-            color: BLUE,
-            borderBottom: `2px solid ${BLUE}`,
-            paddingBottom: "6px",
-            letterSpacing: "0.5px",
-          }}
-        >
-          SALARY SLIP – {MONTHS[month]?.toUpperCase()} {year}
-        </span>
+      {/* 2. TITLE ROW */}
+      <div style={{ textAlign: "center", padding: "14px 0", borderBottom: "1px solid #000" }}>
+        <div style={{ fontSize: "15px", fontWeight: "700", letterSpacing: "1px" }}>SALARY SLIP</div>
+        <div style={{ fontSize: "11px", marginTop: "4px" }}>{MONTHS[month]} {year}</div>
       </div>
 
-      {/* Employee Details */}
-      <div style={{ padding: "0 32px", marginBottom: "20px" }}>
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: "11px",
-          }}
-        >
+      {/* 3. EMPLOYEE DETAILS */}
+      <div style={{ marginTop: "14px" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
           <tbody>
             {[
-              [
-                "Employee Name",
-                emp.name?.toUpperCase() || "—",
-                "Employee Code",
-                emp.empCode || "—",
-              ],
-              [
-                "Designation",
-                emp.designation?.toUpperCase() || "—",
-                "UAN No.",
-                emp.uanNo || "—",
-              ],
-              ["ESIC No.", emp.esicNo || "NA", "Total Days", totalDays],
-              [
-                "Date of Joining",
-                emp.dateOfJoining || "—",
-                "Attendance",
-                entry.daysAttended,
-              ],
+              ["Employee Name", emp.name || "—", "Employee Code", emp.empCode || "—"],
+              ["Designation", emp.designation || "—", "Department", emp.department || "—"],
+              ["UAN No.", emp.uanNo || "—", "ESIC No.", emp.esicNo || "NA"],
+              ["Bank Name", emp.bankName || "—", "Account No.", emp.accountNo || "—"],
+              ["IFSC Code", emp.ifscCode || "—", "Date of Joining", emp.dateOfJoining || "—"],
+              ["Pay Scale", emp.payScale || "As per CTC", "Working Days", `${entry.daysAttended} / ${totalDays}`],
             ].map(([l1, v1, l2, v2], i) => (
               <tr key={i}>
-                <td
-                  style={{
-                    padding: "10px 14px",
-                    borderLeft: `3px solid ${BLUE}`,
-                    borderTop: cellBorder,
-                    borderBottom: cellBorder,
-                    backgroundColor: "#f8fafc",
-                    color: "#64748b",
-                    fontWeight: "500",
-                    width: "15%",
-                  }}
-                >
-                  {l1}
-                </td>
-                <td
-                  style={{
-                    padding: "10px 14px",
-                    borderTop: cellBorder,
-                    borderBottom: cellBorder,
-                    fontWeight: "600",
-                    color: "#1e293b",
-                    width: "35%",
-                  }}
-                >
-                  {v1}
-                </td>
-                <td
-                  style={{
-                    padding: "10px 14px",
-                    borderLeft: `3px solid ${BLUE}`,
-                    borderTop: cellBorder,
-                    borderBottom: cellBorder,
-                    backgroundColor: "#f8fafc",
-                    color: "#64748b",
-                    fontWeight: "500",
-                    width: "15%",
-                  }}
-                >
-                  {l2}
-                </td>
-                <td
-                  style={{
-                    padding: "10px 14px",
-                    borderTop: cellBorder,
-                    borderBottom: cellBorder,
-                    fontWeight: "600",
-                    color: "#1e293b",
-                    width: "35%",
-                  }}
-                >
-                  {v2}
-                </td>
+                <td style={{ border, padding: "6px 8px", width: "18%", backgroundColor: "#fff" }}>{l1}</td>
+                <td style={{ border, padding: "6px 8px", width: "32%", fontWeight: "600" }}>{v1}</td>
+                <td style={{ border, padding: "6px 8px", width: "18%", backgroundColor: "#fff" }}>{l2}</td>
+                <td style={{ border, padding: "6px 8px", width: "32%", fontWeight: "600" }}>{v2}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* Earnings & Deductions Table - Single 4-Column Table */}
-      <div style={{ padding: "0 32px", flexGrow: 1 }}>
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: "11px",
-          }}
-        >
+      {/* 4. EARNINGS & DEDUCTIONS TABLE */}
+      <div style={{ marginTop: "14px", flexGrow: 1 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
           <thead>
             <tr>
-              <th
-                style={{
-                  backgroundColor: BLUE,
-                  color: "white",
-                  padding: "10px 12px",
-                  textAlign: "left",
-                  fontWeight: "600",
-                  border: `1px solid ${BLUE}`,
-                  width: "35%",
-                }}
-              >
-                EARNINGS
-              </th>
-              <th
-                style={{
-                  backgroundColor: BLUE,
-                  color: "white",
-                  padding: "10px 12px",
-                  textAlign: "right",
-                  fontWeight: "600",
-                  border: `1px solid ${BLUE}`,
-                  width: "15%",
-                }}
-              >
-                AMOUNT (₹)
-              </th>
-              <th
-                style={{
-                  backgroundColor: BLUE,
-                  color: "white",
-                  padding: "10px 12px",
-                  textAlign: "left",
-                  fontWeight: "600",
-                  border: `1px solid ${BLUE}`,
-                  width: "35%",
-                }}
-              >
-                DEDUCTIONS
-              </th>
-              <th
-                style={{
-                  backgroundColor: BLUE,
-                  color: "white",
-                  padding: "10px 12px",
-                  textAlign: "right",
-                  fontWeight: "600",
-                  border: `1px solid ${BLUE}`,
-                  width: "15%",
-                }}
-              >
-                AMOUNT (₹)
-              </th>
+              <th style={{ border, padding: "8px", textAlign: "left", fontWeight: "700", backgroundColor: "#f5f5f5", width: "35%" }}>Earnings</th>
+              <th style={{ border, padding: "8px", textAlign: "right", fontWeight: "700", backgroundColor: "#f5f5f5", width: "15%" }}>Amount (₹)</th>
+              <th style={{ border, padding: "8px", textAlign: "left", fontWeight: "700", backgroundColor: "#f5f5f5", width: "35%" }}>Deductions</th>
+              <th style={{ border, padding: "8px", textAlign: "right", fontWeight: "700", backgroundColor: "#f5f5f5", width: "15%" }}>Amount (₹)</th>
             </tr>
           </thead>
           <tbody>
             {[
-              [
-                "Basic Salary (50%)",
-                earned.earnedBasic,
-                "PF",
-                deductions.pfEmployee,
-              ],
-              ["HRA (40%)", earned.earnedHRA, "ESIC", deductions.esicEmployee],
-              [
-                "Conveyance Allowance",
-                earned.earnedConveyance,
-                "Professional Tax",
-                deductions.profTax,
-              ],
-              ["Medical Allowance", earned.earnedMedical, "", null],
-              ["Special Allowance", earned.earnedSpecial, "", null],
-              [
-                "Bonus (8.33%)",
-                earned.earnedBonus,
-                "Total Deductions",
-                totalDeductions,
-              ],
+              ["Basic Salary (50%)", earned.earnedBasic, "PF (Employee)", deductions.pfEmployee],
+              ["HRA (40%)", earned.earnedHRA, "PF (Employer)", mgmt.pfManagement],
+              ["Conveyance Allowance", earned.earnedConveyance, "ESIC (Employee)", deductions.esicEmployee],
+              ["Medical Allowance", earned.earnedMedical, "ESIC (Employer)", mgmt.esicManagement],
+              ["Special Allowance", earned.earnedSpecial, "Professional Tax", deductions.profTax],
+              ["Bonus (8.33%)", earned.earnedBonus, "", null],
             ].map(([eLabel, eAmt, dLabel, dAmt], i) => (
               <tr key={i}>
-                <td
-                  style={{
-                    padding: "9px 12px",
-                    border: cellBorder,
-                    color: "#475569",
-                  }}
-                >
-                  {eLabel}
-                </td>
-                <td
-                  style={{
-                    padding: "9px 12px",
-                    border: cellBorder,
-                    textAlign: "right",
-                    color: "#1e293b",
-                  }}
-                >
-                  {Math.round(eAmt || 0).toLocaleString("en-IN")}
-                </td>
-                <td
-                  style={{
-                    padding: "9px 12px",
-                    border: cellBorder,
-                    color:
-                      dLabel === "Total Deductions" ? "#1e293b" : "#475569",
-                    fontWeight: dLabel === "Total Deductions" ? "600" : "400",
-                  }}
-                >
-                  {dLabel}
-                </td>
-                <td
-                  style={{
-                    padding: "9px 12px",
-                    border: cellBorder,
-                    textAlign: "right",
-                    color:
-                      dLabel === "Total Deductions" ? "#dc2626" : "#1e293b",
-                    fontWeight: dLabel === "Total Deductions" ? "600" : "400",
-                  }}
-                >
-                  {dLabel
-                    ? dLabel === "Total Deductions"
-                      ? Math.round(dAmt || 0).toLocaleString("en-IN")
-                      : dAmt != null && dAmt > 0
-                        ? Math.round(dAmt).toLocaleString("en-IN")
-                        : "NA"
-                    : ""}
+                <td style={{ border, padding: "6px 8px" }}>{eLabel}</td>
+                <td style={{ border, padding: "6px 8px", textAlign: "right" }}>{Math.round(eAmt || 0).toLocaleString("en-IN")}</td>
+                <td style={{ border, padding: "6px 8px" }}>{dLabel}</td>
+                <td style={{ border, padding: "6px 8px", textAlign: "right" }}>
+                  {dLabel ? (dAmt != null && dAmt > 0 ? Math.round(dAmt).toLocaleString("en-IN") : "NA") : ""}
                 </td>
               </tr>
             ))}
-            <tr style={{ backgroundColor: "#f1f5f9" }}>
-              <td
-                style={{
-                  padding: "10px 12px",
-                  border: cellBorder,
-                  fontWeight: "600",
-                  color: "#1e293b",
-                }}
-              >
-                GROSS PAY
-              </td>
-              <td
-                style={{
-                  padding: "10px 12px",
-                  border: cellBorder,
-                  textAlign: "right",
-                  fontWeight: "600",
-                  color: "#1e293b",
-                }}
-              >
-                {Math.round(earned.earnedGrossPay || 0).toLocaleString("en-IN")}
-              </td>
-              <td style={{ padding: "10px 12px", border: cellBorder }}></td>
-              <td style={{ padding: "10px 12px", border: cellBorder }}></td>
+            <tr style={{ fontWeight: "700" }}>
+              <td style={{ border, padding: "8px", fontWeight: "700" }}>GROSS PAY</td>
+              <td style={{ border, padding: "8px", textAlign: "right", fontWeight: "700" }}>{Math.round(earned.earnedGrossPay || 0).toLocaleString("en-IN")}</td>
+              <td style={{ border, padding: "8px", fontWeight: "700" }}>Total Deductions</td>
+              <td style={{ border, padding: "8px", textAlign: "right", fontWeight: "700" }}>{Math.round(totalDeductions || 0).toLocaleString("en-IN")}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      {/* Net Pay */}
-      <div
-        style={{
-          margin: "20px 32px 0",
-          backgroundColor: BLUE,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "14px 20px",
-        }}
-      >
-        <span style={{ color: "white", fontSize: "13px", fontWeight: "600" }}>
-          NET PAY
-        </span>
-        <span style={{ color: "white", fontSize: "20px", fontWeight: "700" }}>
-          ₹{Math.round(netPay || 0).toLocaleString("en-IN")}
-        </span>
+      {/* 5. NET PAY ROW */}
+      <div style={{ 
+        marginTop: "14px", 
+        backgroundColor: "#000", 
+        color: "#fff", 
+        padding: "12px 16px", 
+        display: "flex", 
+        justifyContent: "space-between", 
+        alignItems: "center",
+        border: "1px solid #000"
+      }}>
+        <span style={{ fontSize: "13px", fontWeight: "700" }}>Net Pay (Take Home)</span>
+        <span style={{ fontSize: "18px", fontWeight: "700" }}>₹ {Math.round(netPay || 0).toLocaleString("en-IN")}</span>
       </div>
 
-      {/* Signature Section */}
-      <div style={{ padding: "40px 32px 24px", marginTop: "auto" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-          }}
-        >
-          <div>
-            <p
-              style={{
-                fontSize: "11px",
-                color: "#64748b",
-                marginBottom: "4px",
-              }}
-            >
-              Authorized Signatory -{" "}
-              <span style={{ fontWeight: "600", color: "#1e293b" }}>
-                Rajvi Pandya
-              </span>
-            </p>
-            <p style={{ fontSize: "10px", color: "#64748b" }}>
-              Designation - <span style={{ fontWeight: "500" }}>Head HR</span>
-            </p>
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <p
-              style={{
-                fontSize: "10px",
-                color: "#94a3b8",
-                marginBottom: "8px",
-              }}
-            >
-              Company Seal
-            </p>
-            <div
-              style={{
-                width: "55px",
-                height: "55px",
-                border: "2px solid #94a3b8",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#94a3b8",
-                fontSize: "8px",
-              }}
-            >
-              SEAL
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer Bar */}
-      <div
-        style={{
-          backgroundColor: BLUE,
-          color: "white",
-          padding: "14px 32px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          fontSize: "11px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "14px" }}>📞</span>
-          <span>{settings.companyPhone || "+91-9898921290"}</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "14px" }}>✉️</span>
-          <span>{settings.companyEmail || "info@euroasias.com"}</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "14px" }}>🌐</span>
-          <span>{settings.companyWebsite || "www.euroasias.com"}</span>
+      {/* 6. FOOTER - Authorized Signatory Only */}
+      <div style={{ marginTop: "auto", paddingTop: "24px", borderTop: "1px solid #333" }}>
+        <div>
+          <img src="/sign.png" alt="Signature" style={{ height: "36px", marginBottom: "6px" }} onError={(e) => e.target.style.display = "none"} />
+          <div style={{ fontSize: "10px", fontWeight: "600" }}>Authorized Signatory</div>
+          <div style={{ fontSize: "10px", marginTop: "2px" }}>Rajvi Pandya</div>
+          <div style={{ fontSize: "9px", color: "#555" }}>HR Head</div>
         </div>
       </div>
     </div>
   );
 };
+// === END REDESIGNED: SalarySlipContent ===
 
 // ─── SETTINGS SECTION ────────────────────────────────────────────────────────
 function SettingsSection({ settings, setSettings, notify }) {
