@@ -1211,7 +1211,7 @@ Ahmedabad, Gujarat, 382481
               ["Designation", emp.designation || "—", "Department", emp.department || "—"],
               ["UAN No.", emp.uanNo || "—", "ESIC No.", emp.esicNo || "NA"],
               ["Bank Name", emp.bankName || "—", "Account No.", emp.accountNo || "—"],
-              ["IFSC Code", emp.ifscCode || "—", "Date of Joining", emp.dateOfJoining || "—"],
+              ["IFSC Code", emp.ifscCode || "—", "Date of Joining", emp.dateOfJoining ? emp.dateOfJoining.split("-").reverse().join("-") : "—"],
               ["Pay Scale", emp.payScale || "As per CTC", "Working Days", `${entry.daysAttended} / ${totalDays}`],
             ].map(([l1, v1, l2, v2], i) => (
               <tr key={i}>
