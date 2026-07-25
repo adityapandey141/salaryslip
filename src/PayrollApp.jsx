@@ -78,6 +78,7 @@ function calcEarned(components, daysAttended, totalDays) {
   const earnedGrossPayPF =
     earnedBasic + earnedHRA + earnedConveyance + earnedMedical + earnedSpecial;
   const earnedGrossPay = earnedGrossPayPF + earnedBonus;
+  const earnedESICGross = earnedBasic + earnedMedical + earnedSpecial + earnedBonus;
   return {
     earnedBasic,
     earnedHRA,
@@ -88,6 +89,7 @@ function calcEarned(components, daysAttended, totalDays) {
     earnedPFBase,
     earnedGrossPayPF,
     earnedGrossPay,
+    earnedESICGross,
   };
 }
 
@@ -99,8 +101,8 @@ function calcDeductions(earned, emp, settings) {
       : earned.earnedPFBase;
   const pfEmployee = Math.round(pfBase * 0.12);
   const esicEmployee =
-    emp.esicApplicable && earned.earnedGrossPay <= 21000
-      ? Math.round(earned.earnedGrossPay * 0.0075)
+    emp.esicApplicable && earned.earnedESICGross <= 21000
+      ? Math.round(earned.earnedESICGross * 0.0075)
       : null;
   const profTax =
     earned.earnedGrossPay > (settings.profTaxThreshold || 10000)
@@ -117,8 +119,8 @@ function calcManagement(earned, emp, settings) {
       : earned.earnedPFBase;
   const pfManagement = Math.round(pfBase * 0.12);
   const esicManagement =
-    emp.esicApplicable && earned.earnedGrossPay <= 21000
-      ? Math.round(earned.earnedGrossPay * 0.0325)
+    emp.esicApplicable && earned.earnedESICGross <= 21000
+      ? Math.round(earned.earnedESICGross * 0.0325)
       : null;
   return { pfManagement, esicManagement };
 }
